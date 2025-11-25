@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Server.Classes;
 
 namespace Server
 {
@@ -19,13 +20,18 @@ namespace Server
 
         public static void GetStatus()
         {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Count Clients: {AllClients.Count}");
+            foreach (Classes.Client Client in AllClients)
+            {
+                int Duration = (int)DateTime.Now.Subtract(Client.DateConnect).TotalSeconds;
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.WriteLine($"Client: {Client.Token}, time connection: {Client.DateConnect.ToString("HH:mm:ss dd.MM")}, " +
+                    $"duration: {Duration}"
+                    );
+            }
 
-
-            int Duration = (int)DateTime.Now.Subtract(ClientDateConnection).TotalSeconds;
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"Client: {ClientToken}, time connection: {ClientDateConnection.ToString("HH:mm:ss dd.MM")}, " +
-                $"duration: {Duration}"
-                );
+           
         }
         public static void SetCommand()
         {
@@ -50,12 +56,12 @@ namespace Server
                 AllClients.Remove(DisconnectClient);
 
                 Console.ForegroundColor = ConsoleColor.White;
-                Console.Write($"Client: {Token} disconnect from server");
+                Console.WriteLine($"Client: {Token} disconnect from server");
             }
             catch(Exception exp)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write("Error: " + exp.Message);
+                Console.WriteLine("Error: " + exp.Message);
             }
            
         }
