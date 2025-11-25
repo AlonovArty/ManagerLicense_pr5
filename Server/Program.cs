@@ -1,8 +1,10 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Server.Classes;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Server
 {
@@ -75,6 +77,39 @@ namespace Server
             else if (Command.Contains("/disconnect")) DisconnectServer(Command);
             else if (Command == "/status") GetStatus();
             else if (Command == "/help") Help();
+            else if (Command == "/ban") Ban(Command);
+        }
+
+        public static void Ban(string command)
+        {
+
+            Console.Write("Login: ");
+            string login = Console.ReadLine();
+            if (string.IsNullOrEmpty(login))
+            {
+                Console.WriteLine("Login not specified");
+                return;
+            }
+
+            using var db = new DbContexted();
+
+            if (!db.Users.Any(x => x.Login == login))
+            {
+                Console.WriteLine("User does not exist");
+                return;
+            }
+
+            if (db.blackLists.Any(x => x.Login == login))
+            {
+                Console.WriteLine("User already banned");
+                return;
+            }
+
+            db.blackLists.Add(new BlackList { Login = login });
+            db.SaveChanges();
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"User {login} added to blacklist");
         }
         static void DisconnectServer(string сommand)
         { 
@@ -190,31 +225,37 @@ namespace Server
 
         static string SetCommandClient(string Command)
         {
-            if (Command == "/token")
+
+            if (Command.StartsWith("/connect"))
             {
+                string[] parts = Command.Split(' ');
+                if (parts.Length != 3) return "/auth_fail";
+
+                string login = parts[1];
+                string password = parts[2];
+
+                using var db = new DbContexted();
+
+                if (db.blackLists.Any(x => x.Login == login))
+                    return "/banned";
+
+                var user = db.Users.FirstOrDefault(x => x.Login == login && x.Password == password);
+                if (user == null)
+                    return "/auth_fail";
+
                 if (AllClients.Count < MaxClient)
                 {
-                    Classes.Client newClient = new Classes.Client();
-                    AllClients.Add(newClient);
-
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"New client connection: " + newClient.Token);
-
-                    return newClient.Token;
+                    var client = new Classes.Client();
+                    client.Login = login;
+                    AllClients.Add(client);
+                    return client.Token;
                 }
-                else
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"There is not enough space on the license Server");
-                    return "/limit";
-                }
+
+                return "/limit";
             }
-            else
-            {
-                Classes.Client Client = AllClients.Find(x => x.Token == Command);
-                return Client != null ? "/connect" : "/disconnect";
-            }
-                return null;
+
+            Client c = AllClients.Find(x => x.Token == Command);
+            return c != null ? "/connect" : "/disconnect";
         }
         public static void ConnectServer()
         {

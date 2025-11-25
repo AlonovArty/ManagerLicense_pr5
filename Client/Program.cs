@@ -44,48 +44,52 @@ namespace Client
         }
 
         public static void ConnectServer()
-         {
-            IPEndPoint EndPoint = new IPEndPoint(ServerIpAddress, ServerPort);
-            Socket Socket = new Socket(
-                AddressFamily.InterNetwork,
-                SocketType.Stream,
-                ProtocolType.Tcp);
+        {
+            Console.ForegroundColor = ConsoleColor.White;
 
-            try
-            {
-                Socket.Connect(EndPoint); 
+            Console.Write("Login: ");
+            string login = Console.ReadLine();
 
-            }
-            catch (Exception exp)
+            Console.Write("Password: ");
+            string password = Console.ReadLine();
+
+            IPEndPoint endPoint = new IPEndPoint(ServerIpAddress, ServerPort);
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            socket.Connect(endPoint);
+
+            string msg = $"/connect {login} {password}";
+            socket.Send(Encoding.UTF8.GetBytes(msg));
+
+            byte[] buffer = new byte[1024];
+            int size = socket.Receive(buffer);
+            string response = Encoding.UTF8.GetString(buffer, 0, size);
+
+            if (response == "/auth_fail")
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error: " + exp.Message);
+                Console.WriteLine("Неверный логин или пароль.");
+                return;
             }
 
-            if (Socket.Connected) 
+            if (response == "/banned")
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Connection to server successful ");
-
-                Socket.Send(Encoding.UTF8.GetBytes("/token"));
-
-                byte[] Bytes = new byte[10485760];
-                int ByteRec = Socket.Receive(Bytes);
-
-                string Response = Encoding.UTF8.GetString(Bytes, 0, ByteRec);
-                if(Response == "/limit")
-                {
-                    Console.ForegroundColor= ConsoleColor.Red;
-                    Console.WriteLine("There is not enough space on the license sever");
-                }
-                else
-                {
-                    ClientToken = Response;
-                    ClientDateConnection = DateTime.Now;
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Recieves connection to token: " + ClientToken);
-                }
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Ваш аккаунт находится в черном списке!");
+                return;
             }
+
+            if (response == "/limit")
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Нет свободных лицензий.");
+                return;
+            }
+
+            ClientToken = response;
+            ClientDateConnection = DateTime.Now;
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Успешное подключение. Ваш токен: " + ClientToken);
         }
 
         public static void CheckToken()
