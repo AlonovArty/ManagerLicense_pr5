@@ -12,15 +12,44 @@ namespace Server
         static int ServerPort;
         static int MaxClient;
         static int Duration;
-        static List<Classes.Client> AllClients = new List<Classes.Client>
+        static List<Classes.Client> AllClients = new List<Classes.Client>();
         static void Main(string[] args)
         {
+            OnSettings();
 
+            Thread tListenel = new Thread(ConnectServer);
+            tListenel.Start();
+
+            Thread tDisconnect = new Thread(CheckDisconnectClient);
+            tDisconnect.Start();
+            while (true)
+            {
+                SetCommand();
+            }
         }
 
+        static void CheckDisconnectClient()
+        {
+            while(true)
+            {
+                for(int iClient = 0; iClient < AllClients.Count; iClient++)
+                {
+                    int ClientDuration = (int)DateTime.Now.Subtract(AllClients[iClient].DateConnect).TotalSeconds;
+
+                    if(ClientDuration > Duration)
+                    {
+                        Console.ForegroundColor = ConsoleColor.White;
+                        Console.WriteLine($"Client: {AllClients[iClient].Token} disconnect from server to timeout");
+
+                        AllClients.RemoveAt(iClient);
+                    }
+                }
+                Thread.Sleep(1000);
+            }
+        }
         public static void GetStatus()
         {
-            Console.ForegroundColor = ConsoleColor.Red;
+            Console.ForegroundColor = ConsoleColor.White;
             Console.WriteLine($"Count Clients: {AllClients.Count}");
             foreach (Classes.Client Client in AllClients)
             {
@@ -43,20 +72,20 @@ namespace Server
                 File.Delete(Directory.GetCurrentDirectory() + "/.config");
                 OnSettings();
             }
-            else if (Command.Contains("/disconnect")) ConnectServer(Command);
+            else if (Command.Contains("/disconnect")) DisconnectServer(Command);
             else if (Command == "/status") GetStatus();
             else if (Command == "/help") Help();
         }
-        static void DisconnectServer(string command)
-        {
+        static void DisconnectServer(string сommand)
+        { 
             try
             {
-                string Token = command.Replace("/disconnect", "");
+                string Token = сommand.Replace("/disconnect", "").Trim();
                 Classes.Client DisconnectClient = AllClients.Find(x => x.Token == Token);
                 AllClients.Remove(DisconnectClient);
 
                 Console.ForegroundColor = ConsoleColor.White;
-                Console.WriteLine($"Client: {Token} disconnect from server");
+                Console.Write($"Client: {Token} disconnect from server");
             }
             catch(Exception exp)
             {
@@ -97,6 +126,7 @@ namespace Server
                 StreamReader streamReader = new StreamReader(Path);
                 IpAddress = streamReader.ReadLine();
                 ServerIpAddress = IPAddress.Parse(IpAddress);
+                ServerPort = int.Parse(streamReader.ReadLine());
                 MaxClient = int.Parse(streamReader.ReadLine());
                 Duration = int.Parse(streamReader.ReadLine());
                 streamReader.Close();
@@ -138,6 +168,7 @@ namespace Server
                 Console.Write("Pleace indicate the largest number of clients ");
                 Console.ForegroundColor = ConsoleColor.Green;
                 MaxClient = int.Parse(Console.ReadLine());
+
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write("Specify the token lifetime ");
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -157,49 +188,55 @@ namespace Server
             Console.WriteLine("/config");
         }
 
-        public static void ConnectServer()
+        static string SetCommandClient(string Command)
         {
-            IPEndPoint EndPoint = new IPEndPoint(ServerIpAddress, ServerPort);
-            Socket Socket = new Socket(
-                AddressFamily.InterNetwork,
-                SocketType.Stream,
-                ProtocolType.Tcp);
-
-            try
+            if (Command == "/token")
             {
-                Socket.Connect(EndPoint); ;
-
-            }
-            catch (Exception exp)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Error: " + exp.Message);
-            }
-
-            if (Socket.Connected)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Connection to server successful ");
-
-                Socket.Send(Encoding.UTF8.GetBytes("/token"));
-
-                byte[] Bytes = new byte[10485760];
-                int ByteRec = Socket.Receive(Bytes);
-
-                string Response = Encoding.UTF8.GetString(Bytes, 0, ByteRec);
-                if (Response == "/limit")
+                if (AllClients.Count < MaxClient)
                 {
+                    Classes.Client newClient = new Classes.Client();
+                    AllClients.Add(newClient);
+
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("There is not enough space on the license sever");
+                    Console.WriteLine($"New client connection: " + newClient.Token);
+
+                    return newClient.Token;
                 }
                 else
                 {
-                    ClientToken = Response;
-                    ClientDateConnection = DateTime.Now;
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Recieves connection to token: " + ClientToken);
+                    Console.WriteLine($"There is not enough space on the license Server");
+                    return "/limit";
                 }
             }
+            else
+            {
+                Classes.Client Client = AllClients.Find(x => x.Token == Command);
+                return Client != null ? "/connect" : "/disconnect";
+            }
+                return null;
+        }
+        public static void ConnectServer()
+        {
+            IPEndPoint EndPoint = new IPEndPoint(ServerIpAddress, ServerPort);
+            Socket SocketListener = new Socket(
+                AddressFamily.InterNetwork,
+                SocketType.Stream,
+                ProtocolType.Tcp);
+            SocketListener.Bind(EndPoint);
+            SocketListener.Listen(10);
+            while (true)
+            {
+                Socket Handler = SocketListener.Accept();
+                byte[] Bytes = new byte[10485760];
+                int ByteRec = Handler.Receive(Bytes);
+
+                string Message = Encoding.UTF8.GetString(Bytes, 0, ByteRec);
+                string Response = SetCommandClient(Message);
+
+                Handler.Send(Encoding.UTF8.GetBytes(Response));
+            }
+
         }
     }
 }

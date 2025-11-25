@@ -38,13 +38,13 @@ namespace Client
                 File.Delete(Directory.GetCurrentDirectory() + "/.config");
                 OnSettings();
             }
-            else if (Command == "/connect") ConnectServer();
+            else  if (Command == "/connect")  ConnectServer();
             else if (Command == "/status") GetStatus();
             else if (Command == "/help") Help();
         }
 
         public static void ConnectServer()
-        {
+         {
             IPEndPoint EndPoint = new IPEndPoint(ServerIpAddress, ServerPort);
             Socket Socket = new Socket(
                 AddressFamily.InterNetwork,
@@ -53,7 +53,7 @@ namespace Client
 
             try
             {
-                Socket.Connect(EndPoint); ;
+                Socket.Connect(EndPoint); 
 
             }
             catch (Exception exp)
@@ -91,7 +91,7 @@ namespace Client
         public static void CheckToken()
         {
             while (true) { 
-                if(ClientToken != "")
+                if(!String.IsNullOrEmpty(ClientToken))
                 {
                     IPEndPoint EndPoint = new IPEndPoint(ServerIpAddress, ServerPort);
                     Socket Socket = new Socket(
