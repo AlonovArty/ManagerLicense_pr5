@@ -14,7 +14,7 @@ namespace Server.Classes
         public Client()
         {
             Random random = new Random();
-            string Chars = "FDSAFASGfdsfGSDFGSDFGFDSF123456789";
+            string Chars = "FDSAFASGfdsfGSDFGSDFGFDSF123456789888844411111";
             this.Token = new string(Enumerable.Repeat(Chars, 15).Select(x => x[random.Next(Chars.Length)]).ToArray());
             DateConnect = DateTime.Now;
         }

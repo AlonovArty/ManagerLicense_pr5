@@ -78,6 +78,47 @@ namespace Server
             else if (Command == "/status") GetStatus();
             else if (Command == "/help") Help();
             else if (Command == "/ban") Ban(Command);
+            else if (Command == "/unblock") Unblock(Command);
+        }
+
+        public static void Unblock(string command)
+        {
+            Console.Write("Login: ");
+            string login = Console.ReadLine();
+            if (string.IsNullOrEmpty(login))
+            {
+                Console.WriteLine("Login not specified");
+                return;
+            }
+
+            using var db = new DbContexted();
+
+            if (!db.Users.Any(x => x.Login == login))
+            {
+                Console.WriteLine("User not found");
+                return;
+            }
+
+            var blackListRecord = db.blackLists.FirstOrDefault(x => x.Login == login);
+
+            if (blackListRecord == null)
+            {
+                Console.WriteLine("User is not banned");
+                return;
+            }
+
+            int recordId = blackListRecord.Id;
+
+            var recordToDelete = db.blackLists.Find(recordId);
+            if (recordToDelete != null)
+            {
+                db.blackLists.Remove(recordToDelete);
+                db.SaveChanges();
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"User {login} unbanned");
+                Console.ResetColor();
+            }
         }
 
         public static void Ban(string command)
@@ -225,6 +266,7 @@ namespace Server
 
         static string SetCommandClient(string Command)
         {
+           
 
             if (Command.StartsWith("/connect"))
             {
@@ -245,17 +287,29 @@ namespace Server
 
                 if (AllClients.Count < MaxClient)
                 {
-                    var client = new Classes.Client();
-                    client.Login = login;
-                    AllClients.Add(client);
-                    return client.Token;
+                   Classes.Client newClient = new Classes.Client(); 
+                    AllClients.Add(newClient);
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"New client connection: " + newClient.Token);
+
+                    return newClient.Token;
+
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"There is not enougt space on the license server");
+                    return "/limit";
                 }
 
-                return "/limit";
+               
             }
-
-            Client c = AllClients.Find(x => x.Token == Command);
-            return c != null ? "/connect" : "/disconnect";
+            else
+            {
+                Client c = AllClients.Find(x => x.Token == Command);
+                return c != null ? "/connect" : "/disconnect";
+            }
+            return null;
         }
         public static void ConnectServer()
         {
